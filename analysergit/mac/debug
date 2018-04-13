@@ -1,0 +1,16 @@
+{
+TSocket* fSocket = new TSocket("localhost", 9091);
+std::string req = "GetListOfKeys";
+fSocket->Send(req.c_str());
+TMessage *mr = 0;
+int r = fSocket->Recv(mr);
+if (r <= 0) printf("Error reading from socket!\n");
+TObject *obj = NULL;
+std::cout << "O";
+if (mr) {
+std::cout << "K";
+obj = (TObject*)mr->ReadObjectAny(mr->GetClass());
+}
+TList* objt = (TList*) obj;
+TIter next(objt); TKey *key; while ((key= (TKey*)next())) { TString st = key->GetName(); key->Print(); } 
+}

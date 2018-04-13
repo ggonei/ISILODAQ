@@ -1,0 +1,66 @@
+{
+TTree* evts = NULL;
+TSocket* fSocket;
+TMessage *mr = 0;
+TObject *obj = NULL;
+TH1F* slice_px = NULL;
+TSeqCollection* tsq = NULL;
+TCanvas* tvc = NULL;
+int r = 0;
+std::string req = "";
+}
+
+TObject* fetchObj(string objname)
+{
+	req = "FindObjectByName outputFile/"+objname;
+	fSocket = new TSocket("localhost", 9091);
+	fSocket->Send(req.c_str());
+	r = fSocket->Recv(mr);
+	if (r <= 0) printf("Error reading from socket!\n");
+	if (mr) {
+		obj = (TObject*)mr->ReadObjectAny(mr->GetClass());
+	}
+	return obj;
+}
+
+void drawObj(string objname,string opts = "")
+{
+	fetchObj(objname)->Draw(opts.c_str());
+}
+
+void canvas_auto()
+{
+	TCanvas *auconv = new TCanvas("auconv","Auto-updating",-1);
+	auconv->SetBit(kNoContextMenu);
+}
+
+void auplot(string objname, double seconds)
+{
+	TTimer* ticktock = new TTimer(seconds*1000);
+	objname = "if(!gROOT->GetListOfCanvases()->FindObject(\"auconv\"))canvas_auto();tvc = (TCanvas*) gROOT->FindObject(\"auconv\");tvc->cd();tvc->SetEditable(1);fetchObj(\""+objname+"\")->Draw();gPad->Modified();gPad->Update();tvc->SetEditable(0);((TCanvas*) gROOT->GetListOfCanvases()->Last())->cd();";
+	ticktock->SetCommand(objname.c_str());
+	ticktock->TurnOn();
+	gSystem->AddTimer(ticktock);
+}
+
+void austop()
+{
+	TTimer* ticktock = (TTimer*) gSystem->GetListOfTimers()->At(0);
+	ticktock->Stop();
+	if(gROOT->GetListOfCanvases()->FindObject("auconv")) ((TCanvas*) gROOT->GetListOfCanvases()->FindObject("auconv"))->Close();
+}
+
+
+void rescheck(double xmin, double xmax, double ymin, double ymax, double binmin, double binmax, double peakmin, double peakmax)
+{
+	TCanvas *c1proj = new TCanvas("c1proj");
+// 	TH2D* histo = ((TH2D*)a->GetSocketClientNetFolder()->FindObjectAny("TOFvsX1"));
+// 	histo->GetXaxis()->SetRangeUser(xmin, xmax);
+//	histo->GetYaxis()->SetRange(ymin, ymax);
+//	histo->Draw("col");
+//	if(gROOT->FindObjectByName("slice_px"))slice_px->Close();
+//	histo->ProjectionX("slice_px", binmin, binmax);
+	TCanvas *c2proj = new TCanvas("c2proj");
+	slice_px->Draw();
+	slice_px->Fit("gaus","","",peakmin,peakmax);
+}

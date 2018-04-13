@@ -1,0 +1,101 @@
+ISILO DAQ manual, 2018/04/12
+Or: How I Learned to Stop Worrying and Love the Code
+
+Starting:
+0.  Is the crate on and everything plugged in correctly?
+	Look for PWR (green), BSY (red), RDY (orange) lights on ADC
+1.  Is http://ddaqui.tlabs.ac.za/gline/ up?  If no:
+ssh gline@ddaqui
+./bin/scripts/start_daq_glineTest.sh
+
+2.  Start frontend
+ssh gline@k600vme1
+./k600fevme -h ddaqui.tlabs.ac.za -e glinetest
+
+3.  Note how red boxes on DDAQUI change to green and say frontend started
+	status should say k600fevme@k600vme1
+	Note too in terminal that all matches up (run # etc)
+
+4.	Hit Start, fill out details, hit Start
+
+5.	Every 30 mins (3.5 million events), stop run, start a new one
+
+No events increasing in ROOT spectra?
+Are we still getting events on DDAQUI?  If not:
+Run down list, check before going to the next step until events coming; don't go further than needed!
+a. Check 0-3
+b. Close all terminals
+c. Run 0-3 again
+d. Close all terminals
+e. Turn two big switches off on back of VME crate, wait 10 seconds, turn on
+f. Run 0-3 again
+g. Close all terminals
+h. Run 0-3 again
+i. Call George +447717318220 What's App 0813579785 normal
+
+If YES, check analyser tab for anything weird, it should be processing events and printing every 5000
+
+If not, Ctrl+C, restart
+
+Analysing:
+Open terminal:
+cd ~/analyser
+./ana.exe -Hddaqui.tlabs.ac.za -Eglinetest -bGLINE -P9091
+Look for successful start (especially run number):
+Create main window! 
+Event start:
+  event id:       0x8000
+  trigger mask:   0x494d
+  serial number:     133
+  time stamp:     1522521614, Sat Mar 31 20:40:14 2018
+  data size:      239297
+Begin of run XXX
+Opened output file with name : out/rootfiles/root00000133.root
+
+
+Open terminal:
+cd ~/analyser/mac
+root -l
+.x start
+evts = (TTree*) fetchObj("evts")
+
+This last command (line 56) needs to be run every time you want a new version of the tree...the auto-update is not enabled for night 1.
+
+Tree contains 8 branches:
+n_evts: event number (this is redundant)
+  s1en: dE silicon energy
+  s2en:  E silicon energy
+  geen: g detector energy
+  s1ti: dE time
+  s2ti:  E time
+  geti: ge time
+  trti: trigger time
+
+Some objects are stored but this is the best way to do it.  So how do we?
+	evts->Draw("s1en")
+That would draw s1en...repeat for other branches
+	evts->Draw("s2en","s2en > 100 && s2en < 200")
+That would draw all the events in the Energy silicon detector between 100 and 200 (ADC) channel numbers
+	evts->Draw("s2en","s1ti-trti < 0")
+That would draw all the events in the Energy silicon detector where the silicon time comes before the trigger time
+	evts->Draw("s2en>>(1000,0,2000)","s1ti-trti < 0")
+That would draw all the events in the Energy silicon detector where the silicon time comes before the trigger time with 1000 bins on a scale between 0 and 2000
+	evts->Draw("s2en>>whateverh(1000,0,2000)","s1ti-trti < 0")
+Same as above but it stores it in a histogram called whateverh
+	whateverh->SetLineColor(kRed)
+Sets the histogram line color to kRed for the histogram you made (need to click canvas to see the change)
+	evts->Draw("s1ti-trti","trti > 0")
+Draws dE silicon time minus trigger time where trigger time is greater than 0
+	evts->Draw("(s1ti-trti):n_evts")
+Draw a 2-D histogram with silicon 1 time - trigger time (y-axis) vs event number (x-axis)
+	evts->Draw("(s1ti-trti):n_evts>>(100,0,1000,500,750,1250)")
+Same as above, with histogram having 100 bins in x between 0 and 1000, and 500 bins between 750 and 1250 on y
+
+If you just want a histogram of energy or time, the format is:
+drawObj("Echan_0")
+or
+drawObj("Echan_0","same")
+or
+drawObj("Tchan_0")
+
+(S1E=0, S2E=2, GeE=4, S1T=1, S2T=2, GeT=3)
